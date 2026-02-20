@@ -25,5 +25,5 @@
     "noUncheckedSideEffectImports": true
   },
   "include": ["src"],
-  "exclude": ["src/bin.ts"]
+  "exclude": ["src/joty.ts"]
 }

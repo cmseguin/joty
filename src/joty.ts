@@ -1,7 +1,7 @@
-import * as http from 'http'
-import * as fs from 'fs'
-import * as path from 'path'
-import { randomBytes } from 'crypto'
+import * as http from 'node:http'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { randomBytes } from 'node:crypto'
 
 enum Status {
   TODO = 'todo',
@@ -19,8 +19,6 @@ interface Item {
 interface State {
   items: Item[]
 }
-
-const state: State = { items: [] }
 
 const PORT = Number(process.env.PORT || 3000)
 const DIST_DIR = path.join(process.cwd(), 'dist')
@@ -67,6 +65,25 @@ function mimeType(file: string) {
 		case '.map': return 'application/octet-stream'
 		default: return 'application/octet-stream'
 	}
+}
+
+function saveState(s: State) {
+	fs.writeFileSync('.joty', JSON.stringify(s, null, 2), 'utf-8')
+}
+
+function loadState(): State {
+	const tmpState: State = { items: [] }
+	try {
+		const data = fs.readFileSync('.joty', 'utf-8')
+		const parsed = JSON.parse(data)
+		if (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) {
+			tmpState.items = parsed.items
+		}
+	} catch {
+		console.error('Could not load state, starting with empty state.')
+	}
+
+	return tmpState
 }
 
 function parseBody(req: http.IncomingMessage): Promise<Buffer> {
@@ -123,6 +140,7 @@ const server = http.createServer(async (req, res) => {
 		const host = req.headers.host || `localhost:${PORT}`
 		const reqUrl = new URL(req.url || '/', `http://${host}`)
 		const pathname = reqUrl.pathname
+		let state = loadState();
 
 		// API: /api/items and /api/items/:id
 		if (pathname.startsWith('/api/items')) {
@@ -130,11 +148,13 @@ const server = http.createServer(async (req, res) => {
 			if (parts.length === 2) {
 				// collection
 				if (req.method === 'GET') {
+					state = loadState()
 					sendJSON(res, 200, state.items)
 					return
 				}
 
 				if (req.method === 'POST') {
+					state = loadState()
 					const buf = await parseBody(req)
 					let requestBody: Record<string, unknown> = {}
 
@@ -167,13 +187,16 @@ const server = http.createServer(async (req, res) => {
           }
 
 					state.items.push(item)
+					saveState(state)
 					sendJSON(res, 201, item)
 					return
 				}
 			} else if (parts.length === 3) {
 				const id = parts[2]
 				if (!id) { sendJSON(res, 400, { error: 'invalid id' }); return }
+				state = loadState()
 				const existing = state.items.find((t) => t.id === id)
+
 				if (req.method === 'GET') {
 					if (!existing) { sendJSON(res, 404, { error: 'not found' }); return }
 					sendJSON(res, 200, existing)
@@ -218,6 +241,8 @@ const server = http.createServer(async (req, res) => {
 
 					if (idx >= 0) state.items[idx] = updated
 
+					saveState(state)
+
 					sendJSON(res, 200, updated)
 					return
 				}
@@ -227,6 +252,8 @@ const server = http.createServer(async (req, res) => {
 					if (!existing) { sendJSON(res, 404, { error: 'not found' }); return }
 
 					state.items = state.items.filter((t) => t.id !== id)
+
+					saveState(state)
 
 					res.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
 
