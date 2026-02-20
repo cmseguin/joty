@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && tsc src/joty.ts --outDir ./dist/bin --module NodeNext --moduleResolution NodeNext",
+    "build": "vite build && esbuild src/joty.ts --bundle --platform=node --outfile=dist/bin/joty.js --format=esm",
     "prepare": "npm run build",
     "lint": "eslint .",
     "preview": "vite preview"

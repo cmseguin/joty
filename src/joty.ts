@@ -2,23 +2,8 @@ import * as http from 'node:http'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
-
-enum Status {
-  TODO = 'todo',
-  IN_PROGRESS = 'in-progress',
-  DONE = 'done'
-}
-
-interface Item {
-  id: string
-  title: string
-  body?: string
-  status: Status
-}
-
-interface State {
-  items: Item[]
-}
+import type { State, Item } from './model'
+import { Status } from './model'
 
 const PORT = Number(process.env.PORT || 3000)
 const DIST_DIR = path.join(process.cwd(), 'dist')
@@ -68,7 +53,7 @@ function mimeType(file: string) {
 }
 
 function saveState(s: State) {
-	fs.writeFileSync('.joty', JSON.stringify(s, null, 2), 'utf-8')
+	fs.writeFileSync('.joty', JSON.stringify(s), 'utf-8')
 }
 
 function loadState(): State {
@@ -188,7 +173,7 @@ const server = http.createServer(async (req, res) => {
 
 					state.items.push(item)
 					saveState(state)
-					sendJSON(res, 201, item)
+					sendJSON(res, 201, state)
 					return
 				}
 			} else if (parts.length === 3) {
@@ -231,6 +216,19 @@ const server = http.createServer(async (req, res) => {
 						return
 					}
 
+
+					if (typeof requestBody.status !== 'undefined') {
+						if (
+							typeof requestBody.status !== 'string' ||
+							![Status.TODO, Status.IN_PROGRESS, Status.DONE].includes(requestBody.status as Status)
+						) {
+							sendJSON(res, 400, { error: 'incorrect status' })
+							return
+						}
+
+						existing.status = requestBody.status as Status
+					}
+
 					const updated: Item = { 
             ...existing, 
             title: requestBody.title ?? existing.title, 
@@ -241,9 +239,21 @@ const server = http.createServer(async (req, res) => {
 
 					if (idx >= 0) state.items[idx] = updated
 
+					// Change order if requested
+					if (typeof requestBody.order !== 'undefined') {
+						if (typeof requestBody.order !== 'number' || requestBody.order < 0 || requestBody.order > state.items.length) {
+							sendJSON(res, 400, { error: 'incorrect order' })
+							return
+						}
+
+						// Move item to new position in the array
+						state.items = state.items.filter((t) => t.id !== id)
+						state.items.splice(requestBody.order, 0, existing)
+					}
+
 					saveState(state)
 
-					sendJSON(res, 200, updated)
+					sendJSON(res, 200, state)
 					return
 				}
 
@@ -255,7 +265,7 @@ const server = http.createServer(async (req, res) => {
 
 					saveState(state)
 
-					res.writeHead(204, { 'Access-Control-Allow-Origin': '*' })
+					sendJSON(res, 200, state)
 
 					res.end()
 					return
