@@ -1,307 +1,302 @@
-import * as http from 'node:http'
-import * as fs from 'node:fs'
-import * as path from 'node:path'
-import { randomBytes } from 'node:crypto'
 import type { State, Item } from './model'
 import { Status } from './model'
+import yaml from 'js-yaml'
+import { LexoRank } from "lexorank";
 
 const PORT = Number(process.env.PORT || 3000)
-const DIST_DIR = path.join(process.cwd(), 'dist')
+const DIST_DIR = `${process.cwd()}/dist`
 
 /**
- * Generate a UUID v4 style string using Node's built-in `crypto`.
- * No external dependencies.
- */
+* Generate a UUID v4 style string using Bun's built-in `crypto`.
+*/
 function generateUUID(): string {
-	const buf = randomBytes(16)
-	buf[6] = (buf[6] & 0x0f) | 0x40 // set version to 0100
-	buf[8] = (buf[8] & 0x3f) | 0x80 // set variant to 10
-	const hex = buf.toString('hex')
-	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+	return crypto.randomUUID()
 }
 
-function sendJSON(res: http.ServerResponse, status: number, data: unknown) {
-	const body = JSON.stringify(data)
-	res.writeHead(status, {
-		'Content-Type': 'application/json; charset=utf-8',
-		'Content-Length': Buffer.byteLength(body),
-		'Access-Control-Allow-Origin': '*'
+function sendJSON(response: Response, status: number, data: unknown): Response {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: {
+			'Content-Type': 'application/json; charset=utf-8',
+			'Access-Control-Allow-Origin': '*'
+		}
 	})
-	res.end(body)
 }
 
-function sendText(res: http.ServerResponse, status: number, text: string, contentType = 'text/plain; charset=utf-8') {
-	res.writeHead(status, { 'Content-Type': contentType })
-	res.end(text)
+function sendText(status: number, text: string, contentType = 'text/plain; charset=utf-8'): Response {
+	return new Response(text, {
+		status,
+		headers: { 'Content-Type': contentType }
+	})
 }
 
 function mimeType(file: string) {
-	const ext = path.extname(file).toLowerCase()
+	const ext = file.split('.').pop()?.toLowerCase()
 	switch (ext) {
-		case '.html': return 'text/html; charset=utf-8'
-		case '.js': return 'application/javascript; charset=utf-8'
-		case '.css': return 'text/css; charset=utf-8'
-		case '.json': return 'application/json; charset=utf-8'
-		case '.png': return 'image/png'
-		case '.jpg':
-		case '.jpeg': return 'image/jpeg'
-		case '.svg': return 'image/svg+xml'
-		case '.ico': return 'image/x-icon'
-		case '.map': return 'application/octet-stream'
+		case 'html': return 'text/html; charset=utf-8'
+		case 'js': return 'application/javascript; charset=utf-8'
+		case 'css': return 'text/css; charset=utf-8'
+		case 'json': return 'application/json; charset=utf-8'
+		case 'png': return 'image/png'
+		case 'jpg':
+		case 'jpeg': return 'image/jpeg'
+		case 'svg': return 'image/svg+xml'
+		case 'ico': return 'image/x-icon'
+		case 'map': return 'application/octet-stream'
 		default: return 'application/octet-stream'
 	}
 }
 
 function saveState(s: State) {
-	fs.writeFileSync('.joty', JSON.stringify(s), 'utf-8')
+	const yamlStr = "---\n" + s
+  .map(doc => yaml.dump(doc))
+  .join("---\n");
+	Bun.write('.joty', yamlStr)
 }
 
-function loadState(): State {
-	const tmpState: State = { items: [] }
+async function loadState(): Promise<State> {
+	let tmpState: State = []
 	try {
-		const data = fs.readFileSync('.joty', 'utf-8')
-		const parsed = JSON.parse(data)
-		if (parsed && typeof parsed === 'object' && Array.isArray(parsed.items)) {
-			tmpState.items = parsed.items
+		const file = Bun.file('.joty')
+		if (await file.exists()) {
+			const data = await file.text()
+			const parsed = yaml.loadAll(data) as unknown
+			if (parsed && typeof parsed === 'object' && Array.isArray(parsed)) {
+				tmpState = parsed
+			}
 		}
 	} catch {
 		console.error('Could not load state, starting with empty state.')
 	}
-
 	return tmpState
 }
 
-function parseBody(req: http.IncomingMessage): Promise<Buffer> {
-	return new Promise((resolve, reject) => {
-		const chunks: Buffer[] = []
-		req.on('data', (c) => chunks.push(Buffer.from(c)))
-		req.on('end', () => resolve(Buffer.concat(chunks)))
-		req.on('error', reject)
+function getOrderedState(state: State): State {
+	return [...state].sort((a, b) => {
+		const rankResult = a.order.localeCompare(b.order);
+		if (rankResult !== 0) return rankResult;
+		return a.id.localeCompare(b.id);
 	})
 }
 
-async function serveStatic(req: http.IncomingMessage, res: http.ServerResponse, pathname: string) {
+async function serveStatic(pathname: string): Promise<Response> {
 	// Prevent directory traversal
-	const safePath = path.normalize(decodeURIComponent(pathname)).replace(/^\./, '')
-	let filePath = path.join(DIST_DIR, safePath)
-
+	const safePath = pathname.replace(/^\./, '')
+	let filePath = `${DIST_DIR}${safePath}`
+	
 	try {
-		const stat = await fs.promises.stat(filePath)
-		if (stat.isDirectory()) filePath = path.join(filePath, 'index.html')
+		const file = Bun.file(filePath)
+		if (!(await file.exists())) {
+			// Check if it's a directory and serve index.html
+			const indexFile = Bun.file(`${filePath}/index.html`)
+			if (await indexFile.exists()) {
+				filePath = `${filePath}/index.html`
+			} else {
+				// Fall back to index.html for SPA routing
+				filePath = `${DIST_DIR}/index.html`
+			}
+		}
 	} catch {
-		// File doesn't exist. We'll fall back to index.html for SPA routing.
-		filePath = path.join(DIST_DIR, 'index.html')
+		filePath = `${DIST_DIR}/index.html`
 	}
-
+	
 	// Ensure file is under DIST_DIR
 	if (!filePath.startsWith(DIST_DIR)) {
-		sendText(res, 403, 'Forbidden')
-		return
+		return sendText(403, 'Forbidden')
 	}
-
+	
 	try {
-		const data = await fs.promises.readFile(filePath)
-		const type = mimeType(filePath)
-		res.writeHead(200, { 'Content-Type': type, 'Content-Length': data.length })
-		res.end(data)
+		const file = Bun.file(filePath)
+		if (await file.exists()) {
+			const type = mimeType(filePath)
+			return new Response(file, {
+				headers: { 'Content-Type': type }
+			})
+		} else {
+			return sendText(404, 'Not Found')
+		}
 	} catch {
-		sendText(res, 500, 'Server error')
+		return sendText(500, 'Server error')
 	}
 }
 
-const server = http.createServer(async (req, res) => {
-	try {
-		// Basic CORS preflight handling
-		if (req.method === 'OPTIONS') {
-			res.writeHead(204, {
-				'Access-Control-Allow-Origin': '*',
-				'Access-Control-Allow-Methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
-				'Access-Control-Allow-Headers': 'Content-Type',
-			})
-			res.end()
-			return
-		}
-
-		const host = req.headers.host || `localhost:${PORT}`
-		const reqUrl = new URL(req.url || '/', `http://${host}`)
-		const pathname = reqUrl.pathname
-		let state = loadState();
-
-		// API: /api/items and /api/items/:id
-		if (pathname.startsWith('/api/items')) {
-			const parts = pathname.split('/').filter(Boolean) // ['api','items', ...]
-			if (parts.length === 2) {
-				// collection
-				if (req.method === 'GET') {
-					state = loadState()
-					sendJSON(res, 200, state.items)
-					return
-				}
-
-				if (req.method === 'POST') {
-					state = loadState()
-					const buf = await parseBody(req)
-					let requestBody: Record<string, unknown> = {}
-
-					try { requestBody = JSON.parse(buf.toString() || '{}') } catch { 
-            sendJSON(res, 400, { error: 'invalid JSON' })
-            return
-          }
-
-					if (
-            'title' in requestBody === false || 
-            typeof requestBody.title !== 'string'
-          ) {
-						sendJSON(res, 400, { error: 'missing or incorrect title' })
-						return
+Bun.serve({
+	port: PORT,
+	async fetch(req) {
+		try {
+			// Basic CORS preflight handling
+			if (req.method === 'OPTIONS') {
+				return new Response(null, {
+					status: 204,
+					headers: {
+						'Access-Control-Allow-Origin': '*',
+						'Access-Control-Allow-Methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
+						'Access-Control-Allow-Headers': 'Content-Type',
 					}
-
-          if (
-            typeof requestBody.body !== 'undefined' && 
-            typeof requestBody.body !== 'string'
-          ) {
-						sendJSON(res, 400, { error: 'incorrect body' })
-						return
+				})
+			}
+			
+			const url = new URL(req.url)
+			const pathname = url.pathname
+			let state = await loadState()
+			
+			// API: /api/items and /api/items/:id
+			if (pathname.startsWith('/api/items')) {
+				const parts = pathname.split('/').filter(Boolean) // ['api','items', ...]
+				if (parts.length === 2) {
+					// collection
+					if (req.method === 'GET') {
+						state = await loadState()
+						return sendJSON(new Response(), 200, getOrderedState(state))
 					}
 					
-          const item: Item = { 
-            id: generateUUID(), 
-            title: requestBody.title, 
-            body: requestBody.body, 
-            status: Status.TODO 
-          }
-
-					state.items.push(item)
-					saveState(state)
-					sendJSON(res, 201, state)
-					return
-				}
-			} else if (parts.length === 3) {
-				const id = parts[2]
-				if (!id) { sendJSON(res, 400, { error: 'invalid id' }); return }
-				state = loadState()
-				const existing = state.items.find((t) => t.id === id)
-
-				if (req.method === 'GET') {
-					if (!existing) { sendJSON(res, 404, { error: 'not found' }); return }
-					sendJSON(res, 200, existing)
-					return
-				}
-
-				if (req.method === 'PATCH') {
-					if (!existing) { sendJSON(res, 404, { error: 'not found' }); return }
-
-					const buf = await parseBody(req)
-
-					let requestBody: Record<string, unknown> = {}
-
-					try { requestBody = JSON.parse(buf.toString() || '{}') } catch { 
-            sendJSON(res, 400, { error: 'invalid JSON' })
-            return
-          }
-
-					if (
-						typeof requestBody.title !== 'undefined' &&  
-            typeof requestBody.title !== 'string'
-          ) {
-						sendJSON(res, 400, { error: 'incorrect title' })
-						return
-					}
-
-          if (
-            typeof requestBody.body !== 'undefined' && 
-            typeof requestBody.body !== 'string'
-          ) {
-						sendJSON(res, 400, { error: 'incorrect body' })
-						return
-					}
-
-
-					if (typeof requestBody.status !== 'undefined') {
+					if (req.method === 'POST') {
+						state = await loadState()
+						let requestBody: Record<string, unknown> = {}
+						
+						try { 
+							requestBody = await req.json() as Record<string, unknown>
+						} catch { 
+							return sendJSON(new Response(), 400, { error: 'invalid JSON' })
+						}
+						
 						if (
-							typeof requestBody.status !== 'string' ||
-							![Status.TODO, Status.IN_PROGRESS, Status.DONE].includes(requestBody.status as Status)
+							'title' in requestBody === false || 
+							typeof requestBody.title !== 'string'
 						) {
-							sendJSON(res, 400, { error: 'incorrect status' })
-							return
+							return sendJSON(new Response(), 400, { error: 'missing or incorrect title' })
+						}
+						
+						if (
+							typeof requestBody.body !== 'undefined' && 
+							typeof requestBody.body !== 'string'
+						) {
+							return sendJSON(new Response(), 400, { error: 'incorrect body' })
 						}
 
-						existing.status = requestBody.status as Status
+						const orderedState = getOrderedState(state)
+						const lexoRankOrder = state.length === 0 ? LexoRank.middle() : LexoRank.parse(orderedState[orderedState.length - 1].order).genNext()
+						
+						const item: Item = { 
+							id: generateUUID(), 
+							title: requestBody.title, 
+							body: requestBody.body, 
+							status: Status.TODO,
+							order: lexoRankOrder.toString()
+						}
+						
+						state.push(item)
+						saveState(state)
+						return sendJSON(new Response(), 201, getOrderedState(state))
 					}
-
-					const updated: Item = { 
-            ...existing, 
-            title: requestBody.title ?? existing.title, 
-            body: requestBody.body 
-          }
-
-					const idx = state.items.findIndex((t) => t.id === id)
-
-					if (idx >= 0) state.items[idx] = updated
-
-					// Change order if requested
-					if (typeof requestBody.order !== 'undefined') {
-						if (typeof requestBody.order !== 'number' || requestBody.order < 0 || requestBody.order > state.items.length) {
-							sendJSON(res, 400, { error: 'incorrect order' })
-							return
+				} else if (parts.length === 3) {
+					const id = parts[2]
+					if (!id) { 
+						return sendJSON(new Response(), 400, { error: 'invalid id' })
+					}
+					
+					state = await loadState()
+					const existing = state.find((t) => t.id === id)
+					
+					if (req.method === 'GET') {
+						if (!existing) { 
+							return sendJSON(new Response(), 404, { error: 'not found' })
+						}
+						return sendJSON(new Response(), 200, existing)
+					}
+					
+					if (req.method === 'PATCH') {
+						if (!existing) { 
+							return sendJSON(new Response(), 404, { error: 'not found' })
+						}
+						
+						let requestBody: Record<string, unknown> = {}
+						
+						try { 
+							requestBody = await req.json() as Record<string, unknown>
+						} catch { 
+							return sendJSON(new Response(), 400, { error: 'invalid JSON' })
+						}
+						
+						if (
+							typeof requestBody.title !== 'undefined' &&  
+							typeof requestBody.title !== 'string'
+						) {
+							return sendJSON(new Response(), 400, { error: 'incorrect title' })
+						}
+						
+						if (
+							typeof requestBody.body !== 'undefined' && 
+							typeof requestBody.body !== 'string'
+						) {
+							return sendJSON(new Response(), 400, { error: 'incorrect body' })
+						}
+						
+						if (typeof requestBody.status !== 'undefined') {
+							if (
+								typeof requestBody.status !== 'string' ||
+								![Status.TODO, Status.IN_PROGRESS, Status.DONE].includes(requestBody.status as Status)
+							) {
+								return sendJSON(new Response(), 400, { error: 'incorrect status' })
+							}
+							
+							existing.status = requestBody.status as Status
+						}
+						
+						const updated: Item = { 
+							...existing, 
+							title: requestBody.title ?? existing.title, 
+							body: requestBody.body 
 						}
 
-						// Move item to new position in the array
-						console.log(state.items)
-						state.items = state.items.filter((t) => t.id !== id)
-						console.log(`removing ${id}`)
-						state.items.splice(requestBody.order, 0, existing)
-						console.log(`Inserting ${id} at position ${requestBody.order}`)
-						console.log(state.items)
+						// Change order if requested
+						if (typeof requestBody.order !== 'undefined') {
+							if (typeof requestBody.order !== 'string' || !requestBody.order.includes('-')) {
+								return sendJSON(new Response(), 400, { error: 'incorrect order' })
+							}
+							
+							const [before, after] = requestBody.order.split('-')
+							if (before && after) {
+								updated.order = LexoRank.parse(before).between(LexoRank.parse(after)).toString()
+							} else if (before) {
+								updated.order = LexoRank.parse(before).genNext().toString()
+							} else if (after) {
+								updated.order = LexoRank.parse(after).genPrev().toString()
+							}
+						}
+						
+						const idx = state.findIndex((t) => t.id === id)
+						if (idx >= 0) state[idx] = updated
+						
+						saveState(state)
+						return sendJSON(new Response(), 200, getOrderedState(state))
 					}
+					
+					if (req.method === 'DELETE') {
+						if (!existing) { 
+							return sendJSON(new Response(), 404, { error: 'not found' })
+						}
+						
+						state = state.filter((t) => t.id !== id)
+						saveState(state)
 
-					// fix ordering of all items in the same status to ensure consistency
-					const todos = []
-					const inProgress = []
-					const dones = []
-					for (const item of state.items) {
-						if (item.status === Status.TODO) todos.push(item)
-						else if (item.status === Status.IN_PROGRESS) inProgress.push(item)
-						else if (item.status === Status.DONE) dones.push(item)
+
+						return sendJSON(new Response(), 200, getOrderedState(state))
 					}
-					state.items = [...todos, ...inProgress, ...dones]
-
-					saveState(state)
-
-					sendJSON(res, 200, state)
-					return
 				}
-
-				if (req.method === 'DELETE') {
-
-					if (!existing) { sendJSON(res, 404, { error: 'not found' }); return }
-
-					state.items = state.items.filter((t) => t.id !== id)
-
-					saveState(state)
-
-					sendJSON(res, 200, state)
-
-					res.end()
-					return
-				}
+				
+				return sendJSON(new Response(), 405, { error: 'method not allowed' })
 			}
-
-			sendJSON(res, 405, { error: 'method not allowed' })
-			return
+			
+			// Otherwise, serve static files from dist (built app)
+			return await serveStatic(pathname)
+		} catch {
+			return sendText(500, 'Unhandled server error')
 		}
-
-		// Otherwise, serve static files from dist (built app)
-		await serveStatic(req, res, pathname)
-	} catch {
-		sendText(res, 500, 'Unhandled server error')
 	}
 })
 
-server.listen(PORT, () => {
-	console.log(`Server listening on http://localhost:${PORT}`)
-	console.log(`Serving static files from ${DIST_DIR}`)
-})
+console.log(`Server listening on http://localhost:${PORT}`)
+console.log(`Serving static files from ${DIST_DIR}`)
 
 export {}
-

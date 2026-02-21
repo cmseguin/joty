@@ -100,19 +100,19 @@ const DropZone: FC<DropZoneProps> = ({ onDrop, disabled, item, fullHeight }) => 
 }
 
 function App() {
-  const [state, setState] = useState<State>({ items: [] })
+  const [state, setState] = useState<State>([])
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const draggedItem = state.items.map((x, i) => ({ ...x, index: i })).find(i => i.id === draggedId)
-  const todoItems = state.items.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.TODO)
-  const inProgressItems = state.items.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.IN_PROGRESS)
-  const doneItems = state.items.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.DONE)
+  const draggedItem = state.map((x, i) => ({ ...x, index: i })).find(i => i.id === draggedId)
+  const todoItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.TODO)
+  const inProgressItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.IN_PROGRESS)
+  const doneItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.DONE)
 
   useEffect(() => {
     console.log('Fetching items...')
     fetch('http://localhost:3000/api/items')
       .then(res => res.json())
       .then(data => {
-        setState({ items: data })
+        setState(data)
       })
   }, [])
 
@@ -139,9 +139,12 @@ function App() {
     setDraggedId(null)
   }
 
-  const onDrop = (status: Status, previousIndex: number = -1) => () => {
+  const onDrop = (status: Status, order: string) => () => {
     const body: Record<string, string | number> = { status }
-    body.order = previousIndex + 1
+
+    if (order) {
+      body.order = order
+    }
 
     fetch(`http://localhost:3000/api/items/${draggedId}`, {
       method: 'PATCH',
@@ -167,7 +170,7 @@ function App() {
               item={draggedItem} 
               fullHeight={!todoItems.length}
               disabled={draggedItem && draggedItem.status === Status.TODO && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.TODO)}
+              onDrop={onDrop(Status.TODO, todoItems?.[0]?.order && `-${todoItems?.[0]?.order}`)}
             />
             {todoItems.map(item => (
               <>
@@ -183,7 +186,7 @@ function App() {
                   key={`drop-zone-${item.id}`}
                   disabled={draggedItem && draggedItem.status === Status.TODO && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
                   item={draggedItem} 
-                  onDrop={onDrop(Status.TODO, item.index)} 
+                  onDrop={onDrop(Status.TODO, `${item.order}-${todoItems?.[item.index + 1]?.order ?? ''}`)} 
                 />
               </>
             ))}
@@ -198,7 +201,7 @@ function App() {
               item={draggedItem}
               fullHeight={!inProgressItems.length}
               disabled={draggedItem && draggedItem.status === Status.IN_PROGRESS && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.IN_PROGRESS)} 
+              onDrop={onDrop(Status.IN_PROGRESS, inProgressItems?.[0]?.order && `-${inProgressItems?.[0]?.order}`)} 
             />
             {inProgressItems.map(item => (
               <>
@@ -214,7 +217,7 @@ function App() {
                   key={`drop-zone-${item.id}`} 
                   item={draggedItem}
                   disabled={draggedItem && draggedItem.status === Status.IN_PROGRESS && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
-                  onDrop={onDrop(Status.IN_PROGRESS, item.index)}
+                  onDrop={onDrop(Status.IN_PROGRESS, `${item.order}-${inProgressItems?.[item.index + 1]?.order ?? ''}`)}
                 />
               </>
             ))}
@@ -228,7 +231,7 @@ function App() {
               item={draggedItem} 
               fullHeight={!doneItems.length}
               disabled={draggedItem && draggedItem.status === Status.DONE && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.DONE)}
+              onDrop={onDrop(Status.DONE, doneItems?.[0]?.order && `-${doneItems?.[0]?.order}`)}
             />
             {doneItems.map(item => (
               <>
@@ -244,7 +247,7 @@ function App() {
                   key={`drop-zone-${item.id}`} 
                   item={draggedItem}
                   disabled={draggedItem && draggedItem.status === Status.DONE && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
-                  onDrop={onDrop(Status.DONE, item.index)}
+                  onDrop={onDrop(Status.DONE, `${item.order}-${doneItems?.[item.index + 1]?.order ?? ''}`)}
                 />
               </>
             ))}

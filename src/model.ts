@@ -3,14 +3,12 @@ export enum Status {
   IN_PROGRESS = 'in-progress',
   DONE = 'done'
 }
-
 export interface Item {
   id: string
   title: string
   body?: string
   status: Status
+  order: string
 }
 
-export interface State {
-  items: Item[]
-}
+export type State = Item[]
