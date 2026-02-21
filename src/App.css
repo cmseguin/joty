@@ -3,18 +3,39 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   padding: 1rem;
+  min-height: 500px;
+}
+
+.drop-zone {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  min-height: 0.1rem;
+}
+
+.drop-zone.full-height {
+  height: 100%;
+  padding-top: 2rem;
 }
 
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  height: 100%;
+
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 1rem;
 }
 
 .card {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   padding: 1rem;
+  cursor: grab;
+}
+
+.card.dragged {
+  opacity: 0.25;
 }
 
 .add-card {
@@ -25,4 +46,39 @@
   padding: 0.5rem 1rem;
   cursor: pointer;
   align-self: flex-end;
+}
+
+.title-input {
+  /* Remove default browser styling */
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+
+  /* Typography - Make it look like an H1 */
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #333;
+  font-family: inherit; /* Inherit from body or parent */
+  border-bottom: 1px solid transparent; /* For focus/hover effect */
+}
+
+/* Add a subtle hint on focus or hover for UX */
+.title-input:hover, 
+.title-input:focus {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Accessible hidden label style */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }

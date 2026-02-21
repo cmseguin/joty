@@ -115,7 +115,7 @@ const server = http.createServer(async (req, res) => {
 		if (req.method === 'OPTIONS') {
 			res.writeHead(204, {
 				'Access-Control-Allow-Origin': '*',
-				'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+				'Access-Control-Allow-Methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
 				'Access-Control-Allow-Headers': 'Content-Type',
 			})
 			res.end()
@@ -201,10 +201,10 @@ const server = http.createServer(async (req, res) => {
           }
 
 					if (
-            'title' in requestBody === false || 
+						typeof requestBody.title !== 'undefined' &&  
             typeof requestBody.title !== 'string'
           ) {
-						sendJSON(res, 400, { error: 'missing or incorrect title' })
+						sendJSON(res, 400, { error: 'incorrect title' })
 						return
 					}
 
@@ -247,9 +247,24 @@ const server = http.createServer(async (req, res) => {
 						}
 
 						// Move item to new position in the array
+						console.log(state.items)
 						state.items = state.items.filter((t) => t.id !== id)
+						console.log(`removing ${id}`)
 						state.items.splice(requestBody.order, 0, existing)
+						console.log(`Inserting ${id} at position ${requestBody.order}`)
+						console.log(state.items)
 					}
+
+					// fix ordering of all items in the same status to ensure consistency
+					const todos = []
+					const inProgress = []
+					const dones = []
+					for (const item of state.items) {
+						if (item.status === Status.TODO) todos.push(item)
+						else if (item.status === Status.IN_PROGRESS) inProgress.push(item)
+						else if (item.status === Status.DONE) dones.push(item)
+					}
+					state.items = [...todos, ...inProgress, ...dones]
 
 					saveState(state)
 
