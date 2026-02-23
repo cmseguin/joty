@@ -1,114 +1,74 @@
 import './App.css'
 
-import { useEffect, useRef, useState, type FC } from 'react'
+import { useEffect, useRef, useState, type ComponentProps, type FC, type PropsWithChildren } from 'react'
 import { Status } from './model'
 import type { Item, State } from './model'
+import { Card } from './card/card';
+import { DragDropProvider } from '@dnd-kit/react';
+import { Column } from './column/column';
+import { isSortable } from '@dnd-kit/react/sortable';
 
-interface CardProps {
-  item: Item
-  isDragged?: boolean
-  onDragStart?: () => void
-  onDragEnd?: () => void
-  onUpdate?: (updatedItem: State) => void
-}
-
-const Card: FC<CardProps> = ({ item, onDragStart, onDragEnd, onUpdate, isDragged }) => {
-  const [isDraggable, setIsDraggable] = useState(true)
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value.trim()
-    if (newTitle && newTitle !== item.title && onUpdate) {
-      fetch(`http://localhost:3000/api/items/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle })
-      })
-      .then(res => res.json())
-      .then(data => {
-        onUpdate(data)
-      })
-    }
-  }
-
-  return (
-    <div 
-      key={item.id} 
-      className={`card ${isDragged ? 'dragged' : ''}`}
-      draggable={isDraggable}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      <div 
-        className="title-container" 
-        draggable={false} 
-        onMouseDown={() => setIsDraggable(false)}
-        onMouseUp={() => setIsDraggable(true)}
-      >
-        <label htmlFor={`page-title-${item.id}`} className="sr-only">Task Title</label>
-        <input 
-          id={`page-title-${item.id}`}
-          type="text"
-          draggable={false}
-          className="title-input" 
-          placeholder="Enter title..." 
-          defaultValue={item.title}
-          onBlur={handleBlur}
-        />
-      </div>
-      {item.body && <p>{item.body}</p>}
-    </div>
-  )
-}
-
-interface DropZoneProps { 
-  onDrop: () => void;
-  disabled?: boolean;
-  fullHeight?: boolean;
-  item?: Item 
-}
-
-const DropZone: FC<DropZoneProps> = ({ onDrop, disabled, item, fullHeight }) => {
-  const [isOver, setIsOver] = useState(false);
+/**
+ * The DragDropProvider component from @dnd-kit/react does not do too well
+ * with complex state that is updated after asynchronous operations (like our fetch calls). 
+ * It seems to lose track of the active draggable item, which causes the 
+ * drag and drop interactions to break until you start a new drag operation.
+ * 
+ * To work around this, we can unmount and remount the DragDropProvider whenever a drag operation ends.
+ * This forces it to reset its internal state and recognize the new state of our items.
+ * We use a timeout to delay the unmounting, which allows any pending state updates to complete first.
+ */
+const DnDProvider: FC<PropsWithChildren<ComponentProps<typeof DragDropProvider>>> = ({ children, onDragStart, onDragEnd, ...props }) => {
   const timeoutRef = useRef<number | null>(null);
+  const [ready, setReady] = useState(true);
+
+  if (!ready) return children;
 
   return (
-    <div
-      className={`drop-zone ${fullHeight ? 'full-height' : ''}`}
-      onDragOver={(e) => {
-        e.preventDefault();
-        if (!disabled) {
-          if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-          }
-          setIsOver(true)
-        }
+    <DragDropProvider 
+      onDragStart={(...args) => {
+        if (timeoutRef.current) { clearTimeout(timeoutRef.current); }
+        onDragStart?.(...args)
       }}
-      onDrop={() => {
-        if (!disabled) {
-          onDrop(); 
-        };
-        setIsOver(false); 
+      onDragEnd={(...args) => {
+        if (timeoutRef.current) { clearTimeout(timeoutRef.current); }
+        timeoutRef.current = window.setTimeout(() => {
+          setReady(false);
+          setTimeout(() => {
+            setReady(true);
+          }, 10);
+        }, 500);
+        onDragEnd?.(...args)
       }}
-      onDragLeave={() => {
-        timeoutRef.current = setTimeout(() => {
-          setIsOver(false);
-        }, 100)
-      }}
+      {...props}
     >
-      {!disabled && !!item && !!isOver && <Card item={item} />}
-    </div>
+      {children}
+    </DragDropProvider>
   )
 }
 
 function App() {
+  
   const [state, setState] = useState<State>([])
-  const [draggedId, setDraggedId] = useState<string | null>(null);
-  const draggedItem = state.map((x, i) => ({ ...x, index: i })).find(i => i.id === draggedId)
-  const todoItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.TODO)
-  const inProgressItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.IN_PROGRESS)
-  const doneItems = state.map((x, i) => ({ ...x, index: i })).filter(i => i.status === Status.DONE)
+  const titleMap = new Map([
+    [Status.TODO, 'To Do'],
+    [Status.IN_PROGRESS, 'In Progress'],
+    [Status.DONE, 'Done']
+  ])
+
+  const groups = (state ?? []).reduce((acc, item) => {
+    if (!acc[item.status]) {
+      acc[item.status] = []
+    }
+    acc[item.status].push(item)
+    return acc
+  }, {
+    [Status.TODO]: [],
+    [Status.IN_PROGRESS]: [],
+    [Status.DONE]: []
+  } as Record<Status, Item[]>)
 
   useEffect(() => {
-    console.log('Fetching items...')
     fetch('http://localhost:3000/api/items')
       .then(res => res.json())
       .then(data => {
@@ -125,136 +85,85 @@ function App() {
     .then(res => res.json())
     .then(data => {
       setState(data)
-      console.log('Created item:', data)
     })
   }
 
-  const onCardDragStart = (id: string) => () => {
-    console.log('Drag start:', id)
-    setDraggedId(id)
-  }
+  const onDrop = (id: string, status: Status, index: number) => () => {
+    const groupsCopy = JSON.parse(JSON.stringify(groups)) as Record<Status, Item[]>
+    groupsCopy[status] = groupsCopy?.[status]?.filter((item) => item.id !== id);
+    const elementBefore = groupsCopy?.[status]?.[index - 1];
+    const elementAfter = groupsCopy?.[status]?.[index];
 
-  const onCardDragStop = () => {
-    console.log('Drag stop')
-    setDraggedId(null)
-  }
+    const lexoRankOrder = elementBefore || elementAfter ? `${elementBefore?.order ?? ''}-${elementAfter?.order ?? ''}` : undefined;
 
-  const onDrop = (status: Status, order: string) => () => {
     const body: Record<string, string | number> = { status }
 
-    if (order) {
-      body.order = order
+    if (lexoRankOrder) {
+      body.order = lexoRankOrder
     }
 
-    fetch(`http://localhost:3000/api/items/${draggedId}`, {
+    fetch(`http://localhost:3000/api/items/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     })
     .then(res => res.json() as Promise<State>)
     .then(data => {
-      setState(data)
-      console.log('Updated item:', data)
+      setState(data);
     })
   }
 
   return (
-    <>
+    <DnDProvider
+      onDragOver={(e) => {
+        const { source, target } = e.operation
+        if ((target?.type === 'column' || target?.type === 'item') && source?.type === 'item') {
+          const status = target?.type === 'column' ? target.id as Status : state.find(x => x.id === target.id)?.status
+          if (!status) {
+            console.warn('Could not determine target status for drag over event', { target, state })
+            return
+          }
+          console.log(`Dragging item ${source.id} over ${target.id} (status: ${status})`)
+          // Swap the status of the dragged item with the target column's status
+          setState(items => items.map(i => {
+            if (i.id === source.id) {
+              return { ...i, status }
+            }
+            return i
+          }));
+        }
+      }}
+      onDragEnd={(event) => {
+        if (event.canceled) return;
+        const { source } = event.operation;
+
+        if (isSortable(source)) {
+          const { index, group } = source;
+          if (!source?.id) return
+          onDrop(source.id.toString(), group as Status, index as number)()
+        }
+      }}
+    >
       <h1>Joty</h1>
       <div className="board">
-        <div className="column">
-          <h2>To Do</h2>
-          <div className="cards">
-            <DropZone 
-              key="first-drop-zone" 
-              item={draggedItem} 
-              fullHeight={!todoItems.length}
-              disabled={draggedItem && draggedItem.status === Status.TODO && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.TODO, todoItems?.[0]?.order && `-${todoItems?.[0]?.order}`)}
-            />
-            {todoItems.map(item => (
-              <>
-                <Card
-                  key={`card-${item.id}`}
-                  item={item}
-                  isDragged={draggedId === item.id}
-                  onDragStart={onCardDragStart(item.id)} 
-                  onDragEnd={onCardDragStop} 
-                  onUpdate={(data) => setState(data)} 
-                />
-                <DropZone 
-                  key={`drop-zone-${item.id}`}
-                  disabled={draggedItem && draggedItem.status === Status.TODO && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
-                  item={draggedItem} 
-                  onDrop={onDrop(Status.TODO, `${item.order}-${todoItems?.[item.index + 1]?.order ?? ''}`)} 
-                />
-              </>
+        {Object.entries(groups).map(([status, items]) => (
+          <Column key={status} id={status} title={titleMap.get(status as Status) ?? status}>
+            {items.map((item, index) => (
+              <Card
+                key={`${status}-${item.id}`}
+                id={`${status}-${item.id}`}
+                item={item}
+                index={index}
+                onUpdate={(data) => setState(data)} 
+              />
             ))}
-            <button className="add-card" onClick={handleAddCard}>+ Add Card</button>
-          </div>
-        </div>
-        <div className="column">
-          <h2>In Progress</h2>
-          <div className="cards">
-            <DropZone 
-              key="first-drop-zone" 
-              item={draggedItem}
-              fullHeight={!inProgressItems.length}
-              disabled={draggedItem && draggedItem.status === Status.IN_PROGRESS && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.IN_PROGRESS, inProgressItems?.[0]?.order && `-${inProgressItems?.[0]?.order}`)} 
-            />
-            {inProgressItems.map(item => (
-              <>
-                <Card
-                  key={`card-${item.id}`}
-                  item={item}
-                  isDragged={draggedId === item.id}
-                  onDragStart={onCardDragStart(item.id)} 
-                  onDragEnd={onCardDragStop} 
-                  onUpdate={(data) => setState(data)} 
-                />
-                <DropZone 
-                  key={`drop-zone-${item.id}`} 
-                  item={draggedItem}
-                  disabled={draggedItem && draggedItem.status === Status.IN_PROGRESS && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
-                  onDrop={onDrop(Status.IN_PROGRESS, `${item.order}-${inProgressItems?.[item.index + 1]?.order ?? ''}`)}
-                />
-              </>
-            ))}
-          </div>
-        </div>
-        <div className="column">
-          <h2>Done</h2>
-          <div className="cards">
-            <DropZone 
-              key="first-drop-zone" 
-              item={draggedItem} 
-              fullHeight={!doneItems.length}
-              disabled={draggedItem && draggedItem.status === Status.DONE && draggedItem.id === inProgressItems?.[0]?.id}
-              onDrop={onDrop(Status.DONE, doneItems?.[0]?.order && `-${doneItems?.[0]?.order}`)}
-            />
-            {doneItems.map(item => (
-              <>
-                <Card
-                  key={`card-${item.id}`}
-                  item={item}
-                  isDragged={draggedId === item.id}
-                  onDragStart={onCardDragStart(item.id)} 
-                  onDragEnd={onCardDragStop} 
-                  onUpdate={(data) => setState(data)} 
-                />
-                <DropZone 
-                  key={`drop-zone-${item.id}`} 
-                  item={draggedItem}
-                  disabled={draggedItem && draggedItem.status === Status.DONE && (draggedItem.id === item.id || draggedItem.index - 1 === item.index)}
-                  onDrop={onDrop(Status.DONE, `${item.order}-${doneItems?.[item.index + 1]?.order ?? ''}`)}
-                />
-              </>
-            ))}
-          </div>
-        </div>
+            {status === Status.TODO && (
+              <button className="add-card" onClick={handleAddCard}>+ Add Card</button>
+            )}
+          </Column>
+        ))}
       </div>
-    </>
+    </DnDProvider>
   )
 }
 
