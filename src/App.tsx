@@ -144,10 +144,20 @@ function App() {
         }
       }}
     >
-      <h1>Joty</h1>
+      <h1 className="main-heading">Joty</h1>
       <div className="board">
         {Object.entries(groups).map(([status, items]) => (
-          <Column key={status} id={status} title={titleMap.get(status as Status) ?? status}>
+          <Column 
+            key={status} 
+            id={status} 
+            title={titleMap.get(status as Status) ?? status} 
+            endAdornment={status === Status.TODO && 
+              <button 
+                className="add-column btn-glass" 
+                onClick={handleAddCard}>
+                  + Create a new task
+              </button>
+          }>
             {items.map((item, index) => (
               <Card
                 key={`${status}-${item.id}`}
@@ -157,9 +167,6 @@ function App() {
                 onUpdate={(data) => setState(data)} 
               />
             ))}
-            {status === Status.TODO && (
-              <button className="add-card" onClick={handleAddCard}>+ Add Card</button>
-            )}
           </Column>
         ))}
       </div>

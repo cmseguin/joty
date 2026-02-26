@@ -18,13 +18,15 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
     group: item.status,
   });
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value.trim()
-    if (newTitle && newTitle !== item.title && onUpdate) {
+  const handleBlur = (field: 'title' | 'body') => (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const oldValue = item[field]
+    const newValue = e.target.value.trim()
+
+    if (newValue && newValue !== oldValue && onUpdate) {
       fetch(`http://localhost:3000/api/items/${item.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: newTitle })
+        body: JSON.stringify({ [field]: newValue })
       })
       .then(res => res.json())
       .then(data => {
@@ -37,16 +39,20 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
     <div className="card" ref={ref}>
       <div className="title-container">
         <label htmlFor={`page-title-${item.id}`} className="sr-only">Task Title</label>
-        <input 
+        <textarea 
           id={`page-title-${item.id}`}
-          type="text"
           className="title-input" 
           placeholder="Enter title..." 
           defaultValue={item.title}
-          onBlur={handleBlur}
+          onBlur={handleBlur('title')}
         />
       </div>
-      {item.body && <p>{item.body}</p>}
+      <textarea
+        className="body-input"
+        placeholder="Enter description..."
+        defaultValue={item.body}
+        onBlur={handleBlur('body')}
+      />
     </div>
   )
 }
