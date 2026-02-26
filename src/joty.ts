@@ -246,7 +246,7 @@ Bun.serve({
 						const updated: Item = { 
 							...existing, 
 							title: requestBody.title ?? existing.title, 
-							body: requestBody.body 
+							body: requestBody.body ?? existing.body, 
 						}
 
 						// Change order if requested

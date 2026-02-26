@@ -37,16 +37,25 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
 
   return (
     <div className="card" ref={ref}>
-      <div className="title-container">
-        <label htmlFor={`page-title-${item.id}`} className="sr-only">Task Title</label>
-        <textarea 
-          id={`page-title-${item.id}`}
-          className="title-input" 
-          placeholder="Enter title..." 
-          defaultValue={item.title}
-          onBlur={handleBlur('title')}
-        />
-      </div>
+      <header className="card-header">
+        <div className="title-container">
+          <label htmlFor={`page-title-${item.id}`} className="sr-only">Task Title</label>
+          <textarea 
+            id={`page-title-${item.id}`}
+            className="title-input" 
+            placeholder="Enter title..." 
+            defaultValue={item.title}
+            onBlur={handleBlur('title')}
+          />
+        </div>
+        <button className="kebab-btn" aria-label="More Options">
+          <svg className="kebab-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="5" r="2" fill="currentColor" />
+            <circle cx="12" cy="12" r="2" fill="currentColor" />
+            <circle cx="12" cy="19" r="2" fill="currentColor" />
+          </svg>
+        </button>
+      </header>
       <textarea
         className="body-input"
         placeholder="Enter description..."
