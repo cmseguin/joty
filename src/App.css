@@ -52,6 +52,12 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: #666;
+  opacity: 0;
+}
+
+.kebab-btn.active,
+.card:hover .kebab-btn {
+  opacity: 1;
 }
 
 .title-container {
@@ -209,4 +215,54 @@
   /* A glow that matches the glass tint */
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(30, 144, 255, 0.3);
+}
+
+.glass-dropdown {
+  position: absolute;
+  z-index: 100;
+
+  /* 1. Liquid Glass Base */
+  background: rgba(255, 255, 255, 0.7); /* Higher opacity for #333 text contrast */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  
+  /* 2. Border & Shape */
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  min-width: 180px;
+  margin: 0;
+  padding: 8px;
+  
+  /* 3. Shadow for Depth */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+  /* 4. Typography */
+  color: #333;
+  font-family: inherit;
+  list-style: none;
+}
+
+.glass-dropdown li {
+  padding: 10px 16px;
+  margin: 2px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.glass-dropdown li:hover {
+  /* A slight "shimmer" effect on hover */
+  background: rgba(255, 255, 255, 0.7);
+  color: #000; /* Slightly darken text on hover */
+}
+
+/* Optional: Red text for a "Delete" action */
+.glass-dropdown li.danger:hover {
+  background: rgba(255, 59, 48, 0.1);
+  color: #d32f2f;
 }

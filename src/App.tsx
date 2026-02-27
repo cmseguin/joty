@@ -151,7 +151,7 @@ function App() {
             key={status} 
             id={status} 
             title={titleMap.get(status as Status) ?? status} 
-            endAdornment={status === Status.TODO && 
+            endAdornment={status === Status.TODO &&
               <button 
                 className="add-column btn-glass" 
                 onClick={handleAddCard}>

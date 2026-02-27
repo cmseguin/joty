@@ -1,6 +1,7 @@
 import { type FC } from "react"
 import type { Item, State } from "../model"
 import { useSortable } from '@dnd-kit/react/sortable';
+import { Dropdown } from "../dropdown/dropdown";
 
 interface CardProps {
   id?: string
@@ -17,6 +18,18 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
     accept: 'item',
     group: item.status,
   });
+
+  const handleDropdownSelect = (option: string) => {
+    if (option === 'Delete' && onUpdate) {
+      fetch(`http://localhost:3000/api/items/${item.id}`, {
+        method: 'DELETE',
+      })
+      .then(res => res.json())
+      .then(data => {
+        onUpdate(data)
+      })
+    }
+  }
 
   const handleBlur = (field: 'title' | 'body') => (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const oldValue = item[field]
@@ -48,13 +61,17 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
             onBlur={handleBlur('title')}
           />
         </div>
-        <button className="kebab-btn" aria-label="More Options">
-          <svg className="kebab-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="5" r="2" fill="currentColor" />
-            <circle cx="12" cy="12" r="2" fill="currentColor" />
-            <circle cx="12" cy="19" r="2" fill="currentColor" />
-          </svg>
-        </button>
+        <Dropdown options={[ 'Delete' ]} onSelect={handleDropdownSelect}>
+          {({ ...props }) => (
+            <button className="kebab-btn" aria-label="More Options" {...props}>
+              <svg className="kebab-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="5" r="2" fill="currentColor" />
+                <circle cx="12" cy="12" r="2" fill="currentColor" />
+                <circle cx="12" cy="19" r="2" fill="currentColor" />
+              </svg>
+            </button>
+          )}
+        </Dropdown>
       </header>
       <textarea
         className="body-input"
