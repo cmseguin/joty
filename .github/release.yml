@@ -1,0 +1,37 @@
+name: Release
+on:
+  push:
+    branches: [main]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # To push tags and updates to CHANGELOG
+      id-token: write # For tokenless npm publishing
+      issues: write   # To comment on fixed issues
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # Important: semantic-release needs full history
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No NPM_TOKEN needed if you configured npm "Trust" (OIDC)
+        run: npx semantic-release
