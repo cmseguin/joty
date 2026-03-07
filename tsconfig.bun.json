@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src/joty.ts"]
+  "include": ["src/joty.ts", "src/bin.ts"]
 }

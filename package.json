@@ -20,7 +20,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:vite && npm run build:bin",
-    "build:bin": "bun build ./src/joty.ts --compile --outfile dist/bin/joty",
+    "build:bin": "bun build ./src/bin.ts --target node --outfile dist/bin/joty && bun build ./src/joty.ts --target bun-darwin-arm64 --compile --outfile dist/bin/joty-darwin-arm64 && bun build ./src/joty.ts --target bun-darwin-x64 --compile --outfile dist/bin/joty-darwin-x64 && bun build ./src/joty.ts --target bun-linux-arm64 --compile --outfile dist/bin/joty-linux-arm64 && bun build ./src/joty.ts --target bun-linux-x64 --compile --outfile dist/bin/joty-linux-x64",
     "build:vite": "vite build",
     "prepare": "npm run build",
     "lint": "eslint .",
