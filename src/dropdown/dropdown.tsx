@@ -55,25 +55,13 @@ export const Dropdown: FC<DropdownProps> = ({ options, onSelect, children }) => 
         const menuRect = menuRef.current?.getBoundingClientRect() ?? { width: 0, height: 0 };
         const rect = triggerRef.current.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
-        const buffer = 10;
-        
-        // Default position (aligned to the left of the trigger)
+
         let x = rect.left;
         const y = rect.bottom;
   
-        // To be precise, we'd need the width of the element being opened.
-        // If you don't have that yet, a common logic is to check if 
-        // the trigger is in the right half of the screen.
         const isCloseToRightEdge = rect.left + menuRect.width > viewportWidth / 2;
   
-        console.log('Trigger rect:', rect);
-        console.log('Menu rect:', menuRect);
-        console.log('Viewport width:', viewportWidth);
-        console.log('Is close to right edge:', isCloseToRightEdge);
-  
         if (isCloseToRightEdge) {
-          // Align the menu's right edge with the trigger's right edge
-          // This prevents the menu from expanding further right
           x = rect.right - menuRect.width; 
         }
   
