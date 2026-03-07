@@ -38,5 +38,6 @@ jobs:
       - name: Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           # No NPM_TOKEN needed if you configured npm "Trust" (OIDC)
         run: npx semantic-release
