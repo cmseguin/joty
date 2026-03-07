@@ -3,14 +3,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write # To push tags and updates to CHANGELOG
+  id-token: write # For tokenless npm publishing
+  issues: write   # To comment on fixed issues
+  pull-requests: write # To comment on PRs with breaking changes
 jobs:
   release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # To push tags and updates to CHANGELOG
-      id-token: write # For tokenless npm publishing
-      issues: write   # To comment on fixed issues
-      pull-requests: write
 
     steps:
       - name: Checkout
