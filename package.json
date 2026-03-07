@@ -1,9 +1,17 @@
 {
   "name": "joty",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "bin": {
     "joty": "dist/bin/joty.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cmseguin/joty.git"
   },
   "scripts": {
     "dev": "vite",
