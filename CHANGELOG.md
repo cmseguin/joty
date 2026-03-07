@@ -1,3 +1,13 @@
+## [1.0.1](https://github.com/cmseguin/joty/compare/v1.0.0...v1.0.1) (2026-03-07)
+
+
+### Bug Fixes
+
+* changed some stuff to make the release better ([d9f8cdb](https://github.com/cmseguin/joty/commit/d9f8cdb87fff0bb2b1c9a0c0fe172c22df19dc5f))
+* rename the package because npm wont let it go ([43cbe83](https://github.com/cmseguin/joty/commit/43cbe83bd60c87b465e714501861bb8fb461a81c))
+* try something for ci/cd tokenless publishing ([beefcf5](https://github.com/cmseguin/joty/commit/beefcf57f709f405053398390fc63241858b958b))
+* try to make it work with npm token first ([1baf913](https://github.com/cmseguin/joty/commit/1baf9137bcff983ed9d52c7197602c3ace584f4c))
+
 # 1.0.0 (2026-03-07)
 
 
