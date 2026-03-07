@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/cmseguin/joty/compare/v1.0.2...v1.0.3) (2026-03-07)
+
+
+### Bug Fixes
+
+* changed the build to a proxy node file ([a7df447](https://github.com/cmseguin/joty/commit/a7df447df4fb9fdf218a5bb8bac0111f9ea64a8e))
+
 ## [1.0.2](https://github.com/cmseguin/joty/compare/v1.0.1...v1.0.2) (2026-03-07)
 
 
