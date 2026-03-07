@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/cmseguin/joty/compare/v1.0.1...v1.0.2) (2026-03-07)
+
+
+### Bug Fixes
+
+* changed the bin dest ([cd33eb8](https://github.com/cmseguin/joty/commit/cd33eb8deb085ee5b90432f2d1b380a2bb58e353))
+
 ## [1.0.1](https://github.com/cmseguin/joty/compare/v1.0.0...v1.0.1) (2026-03-07)
 
 
