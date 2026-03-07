@@ -1,3 +1,5 @@
+import './dropdown.scoped.css';
+
 import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
 import { createPortal } from 'react-dom';
 
@@ -24,7 +26,7 @@ const DropdownMenu: FC<{
   }
   
   return createPortal(
-    <ul className="glass-dropdown" style={{ top: y, left: x }}>
+    <ul className="dropdown" style={{ top: y, left: x }}>
       {options.map(option => (
         <li key={option} onClick={() => {
           onSelect(option);

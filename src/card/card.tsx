@@ -1,7 +1,11 @@
+import './card.scoped.css';
+
 import { type FC } from "react"
 import type { Item, State } from "../model"
 import { useSortable } from '@dnd-kit/react/sortable';
 import { Dropdown } from "../dropdown/dropdown";
+import { KebabButton } from "../kebab-button/kebab-button";
+import { remove, update } from '../sdk';
 
 interface CardProps {
   id?: string
@@ -19,38 +23,26 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
     group: item.status,
   });
 
-  const handleDropdownSelect = (option: string) => {
+  const handleDropdownSelect = async (option: string) => {
     if (option === 'Delete' && onUpdate) {
-      fetch(`http://localhost:3000/api/items/${item.id}`, {
-        method: 'DELETE',
-      })
-      .then(res => res.json())
-      .then(data => {
-        onUpdate(data)
-      })
+      const data = await remove({ id: item.id })
+      onUpdate(data)
     }
   }
 
-  const handleBlur = (field: 'title' | 'body') => (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleBlur = (field: 'title' | 'body') => async (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const oldValue = item[field]
     const newValue = e.target.value.trim()
 
     if (newValue && newValue !== oldValue && onUpdate) {
-      fetch(`http://localhost:3000/api/items/${item.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: newValue })
-      })
-      .then(res => res.json())
-      .then(data => {
-        onUpdate(data)
-      })
+      const data = await update({ id: item.id, [field]: newValue })
+      onUpdate(data)
     }
   }
 
   return (
     <div className="card" ref={ref}>
-      <header className="card-header">
+      <header className="header">
         <div className="title-container">
           <label htmlFor={`page-title-${item.id}`} className="sr-only">Task Title</label>
           <textarea 
@@ -63,13 +55,7 @@ export const Card: FC<CardProps> = ({ index, item, onUpdate }) => {
         </div>
         <Dropdown options={[ 'Delete' ]} onSelect={handleDropdownSelect}>
           {({ ...props }) => (
-            <button className="kebab-btn" aria-label="More Options" {...props}>
-              <svg className="kebab-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="5" r="2" fill="currentColor" />
-                <circle cx="12" cy="12" r="2" fill="currentColor" />
-                <circle cx="12" cy="19" r="2" fill="currentColor" />
-              </svg>
-            </button>
+            <KebabButton className='kebab-btn' {...props} />
           )}
         </Dropdown>
       </header>

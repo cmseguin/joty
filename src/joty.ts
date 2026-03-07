@@ -3,7 +3,9 @@ import { Status } from './model'
 import yaml from 'js-yaml'
 import { LexoRank } from "lexorank";
 
-const PORT = Number(process.env.PORT || 3000)
+const PORT = Number(process.env.PORT ?? 3000)
+const HOST = process.env.HOST ?? 'localhost'
+const BASE_URL = `http://${HOST}:${PORT}`
 const DIST_DIR = `${process.cwd()}/dist`
 
 /**
@@ -296,7 +298,7 @@ Bun.serve({
 	}
 })
 
-console.log(`Server listening on http://localhost:${PORT}`)
+console.log(`Server listening on: ${BASE_URL}`)
 console.log(`Serving static files from ${DIST_DIR}`)
 
 export {}

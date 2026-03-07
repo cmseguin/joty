@@ -1,0 +1,118 @@
+.card {
+  background: rgba(255, 255, 255, 0.1); 
+  
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px); /* Safari support */
+  
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.1);
+  
+  border-radius: 20px;
+  padding: 1rem;
+  color: white;
+  cursor: grab;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.kebab-btn {
+  opacity: 0;
+}
+
+.kebab-btn.active,
+.card:hover .kebab-btn {
+  opacity: 1;
+}
+
+.title-container {
+  flex-grow: 1;
+}
+
+.title-input {
+  /* Remove default browser styling */
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  margin-bottom: 0.5rem;
+  resize: none; /* Hides the grabby corner handle */
+  overflow: hidden; /* Prevents scrollbars from appearing */
+
+  /* 2. The Auto-Adjust Magic (Modern Browsers) */
+  field-sizing: content; 
+
+  /* Typography - Make it look like an H1 */
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: #333;
+  font-family: inherit; /* Inherit from body or parent */
+  border-bottom: 1px solid transparent; /* For focus/hover effect */
+}
+
+.body-input {
+  /* 1. Reset everything */
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  line-height: 1.3;
+  resize: none; /* Hides the grabby corner handle */
+  overflow: hidden; /* Prevents scrollbars from appearing */
+
+  /* 2. The Auto-Adjust Magic (Modern Browsers) */
+  field-sizing: content; 
+
+  /* 3. Typography */
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: #777;
+  font-family: inherit;
+  
+  /* 4. Smooth transition for focus */
+  transition: color 0.3s ease;
+}
+
+.body-input:focus {
+  color: #666; /* Brighten text on focus to match the glass vibe */
+}
+
+.body-input::placeholder {
+  transition: color 0.7s ease;
+  color: rgba(0, 0, 0, 0); /* Faded placeholder */
+}
+
+*:hover>.body-input::placeholder,
+.body-input:focus::placeholder {
+  color: rgba(0, 0, 0, 0.3); /* Faded placeholder */
+}
+
+*[aria-pressed="true"]>.body-input::placeholder {
+  color: rgba(0, 0, 0, 0); /* Faded placeholder */
+}
+
+/* Add a subtle hint on focus or hover for UX */
+.title-input:hover, 
+.title-input:focus {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Accessible hidden label style */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

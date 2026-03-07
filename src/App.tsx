@@ -7,6 +7,8 @@ import { Card } from './card/card';
 import { DragDropProvider } from '@dnd-kit/react';
 import { Column } from './column/column';
 import { isSortable } from '@dnd-kit/react/sortable';
+import { Button } from './button/button';
+import { create, get, update } from './sdk';
 
 /**
  * The DragDropProvider component from @dnd-kit/react does not do too well
@@ -48,7 +50,6 @@ const DnDProvider: FC<PropsWithChildren<ComponentProps<typeof DragDropProvider>>
 }
 
 function App() {
-  
   const [state, setState] = useState<State>([])
   const titleMap = new Map([
     [Status.TODO, 'To Do'],
@@ -69,23 +70,12 @@ function App() {
   } as Record<Status, Item[]>)
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/items')
-      .then(res => res.json())
-      .then(data => {
-        setState(data)
-      })
+    get().then(data => setState(data))
   }, [])
 
-  const handleAddCard = () => {
-    fetch('http://localhost:3000/api/items', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: 'New Task' })
-    })
-    .then(res => res.json())
-    .then(data => {
-      setState(data)
-    })
+  const handleAddCard = async () => {
+    const data = await create({ title: 'New Task' })
+    setState(data)
   }
 
   const onDrop = (id: string, status: Status, index: number) => () => {
@@ -102,13 +92,7 @@ function App() {
       body.order = lexoRankOrder
     }
 
-    fetch(`http://localhost:3000/api/items/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    .then(res => res.json() as Promise<State>)
-    .then(data => {
+    update({ id, ...body }).then(data => {
       setState(data);
     })
   }
@@ -152,11 +136,9 @@ function App() {
             id={status} 
             title={titleMap.get(status as Status) ?? status} 
             endAdornment={status === Status.TODO &&
-              <button 
-                className="add-column btn-glass" 
-                onClick={handleAddCard}>
-                  + Create a new task
-              </button>
+              <Button onClick={handleAddCard}>
+                + Create a new task
+              </Button>
           }>
             {items.map((item, index) => (
               <Card

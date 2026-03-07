@@ -1,3 +1,5 @@
+import './column.scoped.css';
+
 import { useDroppable } from "@dnd-kit/react";
 import {CollisionPriority} from '@dnd-kit/abstract';
 import { type FC, type PropsWithChildren } from "react";
@@ -17,8 +19,8 @@ export const Column: FC<PropsWithChildren<ColumnProps>> = ({ id, title, endAdorn
   });
 
   return (
-    <div className="column-wrap">
-      <h2 className="column-heading">{title}</h2>
+    <div className="wrap">
+      <h2 className="heading">{title}</h2>
       <div className="column">
         <div ref={ref} className="cards">
           {children}

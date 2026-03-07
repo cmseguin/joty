@@ -1,0 +1,38 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 20px;
+  padding: 1rem;
+}
+
+.heading {
+  margin-top: 0;
+  padding-left: 1rem;
+  margin-bottom: 0;
+  font-size: 2rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1rem;
+  flex-grow: 1;
+}
+
+.end-adornment {
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+}
